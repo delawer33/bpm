@@ -1,4 +1,5 @@
 import base64
+import hashlib
 import secrets
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -19,7 +20,8 @@ def hash_password(password: str) -> str:
     return ph.hash(password)
 
 
-print(hash_password("123123123"))
+def hash_token(token: str) -> str:
+    return hashlib.sha256(token.encode()).hexdigest()
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
