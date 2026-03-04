@@ -16,6 +16,7 @@ app_settings = get_settings()
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
+print(app_settings.db_url)
 config.set_main_option("sqlalchemy.url", app_settings.db_url)
 
 # Interpret the config file for Python logging.
