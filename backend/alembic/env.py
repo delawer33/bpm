@@ -9,7 +9,8 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 from alembic import context
 
 from app.core.db import Base
-from app.modules.users.models import User  # noqa
+from app.modules.users.models import User, RefreshToken  # noqa
+from app.modules.tracks.models import *  # noqa
 from app.core.config import get_settings
 
 app_settings = get_settings()

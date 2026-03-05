@@ -1,8 +1,10 @@
+import uuid
 from datetime import datetime
 from enum import Enum
 from typing import List, Optional
 
 from sqlalchemy import (
+    UUID,
     CheckConstraint,
     ForeignKey,
     Integer,
@@ -46,7 +48,7 @@ class Track(Base):
         ),
     )
 
-    id: Mapped[int] = mapped_column(primary_key=True)
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 
     user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),

@@ -12,8 +12,9 @@ if TYPE_CHECKING:
 class Genre(Base):
     __tablename__ = "genres"
 
-    id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(String(50), unique=True, index=True)
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=False)
+    name: Mapped[str] = mapped_column(String(50), unique=True)
+    slug: Mapped[str] = mapped_column(String(50), unique=True, index=True)
 
     tracks: Mapped[List["Track"]] = relationship(
         secondary="track_genres",

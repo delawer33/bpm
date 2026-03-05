@@ -11,3 +11,6 @@ class TrackService:
 
     async def create_draft(self, user_id: uuid.UUID) -> Track:
         track = Track(user_id=user_id)
+        self.db.add(track)
+        await self.db.flush()
+        return track

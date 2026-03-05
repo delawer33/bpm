@@ -1,6 +1,7 @@
 import logging
 
 from fastapi import Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from sqlalchemy.exc import OperationalError, SQLAlchemyError
 
@@ -56,6 +57,27 @@ def register_exception_handlers(app):
             content={
                 "error": "server_error",
                 "message": "Service temporarily unavailable. Database connection error. Please try again in a few moments.",
+                "request_id": request_id,
+            },
+        )
+
+    @app.exception_handler(RequestValidationError)
+    async def validation_exception_handler(request: Request, exc: RequestValidationError):
+        request_id = getattr(request.state, "request_id", "unknown")
+        errors = [
+            {
+                "field": ".".join(str(x) for x in e["loc"]),
+                "message": e["msg"],
+                "type": e["type"],
+            }
+            for e in exc.errors()
+        ]
+        return JSONResponse(
+            status_code=422,
+            content={
+                "code": "validation_error",
+                "message": "Validation failed",
+                "details": errors,
                 "request_id": request_id,
             },
         )
