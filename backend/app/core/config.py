@@ -16,6 +16,7 @@ class Settings(BaseSettings):
 
     # Database
     db_url: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/bpm"
+    redis_url: str = "redis://redis:6379/0"
 
     # MinIO
     minio_endpoint: str = "localhost:9000"

@@ -1,16 +1,44 @@
 import logging
 import uuid
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
-from .api.v1.router import router as api_v1_router
-from .exception_handlers import register_exception_handlers
-from .logger_settings import RequestIDFilter
+from app.api.v1.router import router as api_v1_router
+from app.cache.track_meta import sync_dictionary
+from app.core.db import get_db
+from app.core.redis import redis_client
+from app.exception_handlers import register_exception_handlers
+from app.logger_settings import RequestIDFilter
 
 logger = logging.getLogger("app_logger")
 
-app = FastAPI()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    try:
+        await redis_client.ping()  # type: ignore[return-value]
+        logger.info("Redis connection established")
+    except Exception as e:
+        logger.error("Redis connection failed: %s", e)
+        raise e
+
+    try:
+        async for session in get_db():
+            await sync_dictionary(redis_client, session)
+            break
+        logger.info("Redis dictionaries synced from DB")
+    except Exception as e:
+        logger.error("Failed to sync dictionaries: %s", e)
+        raise
+    yield
+
+    await redis_client.close()
+    logger.info("Redis connection closed")
+
+
+app = FastAPI(lifespan=lifespan)
 
 
 @app.middleware("http")

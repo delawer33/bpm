@@ -1,9 +1,11 @@
 import uuid
 
 from fastapi import APIRouter, Depends
+from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_db
+from app.core.redis import get_redis
 from app.dependencies import get_current_user
 from app.modules.tracks.schemas import STrackID, STrackUpload
 from app.modules.tracks.services.track import TrackService
@@ -27,5 +29,6 @@ async def submit(
     data: STrackUpload,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
+    redis_client: Redis = Depends(get_redis),
 ):
-    pass
+    track_data = data.model_dump()

@@ -13,10 +13,10 @@ class STrackUpload(BaseModel):
     bpm: Annotated[int, Field(gt=0, le=300)]
     root_note: str
     scale_type: str
-    tags: List[str] = []
-    genres: List[str] = []
-    moods: List[str] = []
-    instruments: List[str] = []
+    tags: List[str]
+    genres: List[str]
+    moods: List[str]
+    instruments: List[str]
 
     description: str | None = None
 
@@ -36,11 +36,11 @@ class STrackUpload(BaseModel):
             raise ValueError(f"scale_type must be one of {allowed}")
         return v
 
-    @field_validator("genres")
+    @field_validator("moods")
     @classmethod
-    def validate_genres(cls, v: List[str]) -> List[str]:
+    def validate_moods(cls, v: List[str]) -> List[str]:
         if not v:
-            raise ValueError("At least one genre is required")
+            raise ValueError("At least one mood is required")
         return v
 
     @field_validator("instruments")
@@ -48,4 +48,13 @@ class STrackUpload(BaseModel):
     def validate_instruments(cls, v: List[str]) -> List[str]:
         if not v:
             raise ValueError("At least one instrument is required")
+        return v
+
+    @field_validator("genres")
+    @classmethod
+    def validate_genres(cls, v: List[str]) -> List[str]:
+        if not v:
+            raise ValueError("At least one instrument is required")
+        if len(v) > 2:
+            raise ValueError("Maximum 2 genres")
         return v
