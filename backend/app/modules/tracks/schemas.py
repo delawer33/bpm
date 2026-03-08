@@ -1,7 +1,7 @@
 import uuid
 from typing import Annotated, List
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class STrackID(BaseModel):
@@ -19,6 +19,8 @@ class STrackUpload(BaseModel):
     instruments: List[str]
 
     description: str | None = None
+
+    model_config = ConfigDict(extra="forbid")
 
     @field_validator("root_note")
     @classmethod

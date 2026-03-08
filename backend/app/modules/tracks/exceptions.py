@@ -1,16 +1,13 @@
 from app.exceptions import AppBaseException
 
 
-class InvalidGenreError(AppBaseException):
+class SlugValidationError(AppBaseException):
     def __init__(self):
-        super().__init__("Genre is invalid", "genre_invalid", 400)
+        super().__init__("Slug is invalid", "slug_invalid", 400)
 
 
-class InvalidMoodError(AppBaseException):
+class TrackIsNotFoundOrNoAccessError(AppBaseException):
     def __init__(self):
-        super().__init__("Mood is invalid", "mood_invalid", 400)
-
-
-class InvalidInstrumentError(AppBaseException):
-    def __init__(self):
-        super().__init__("Instrument is invalid", "instrument_invalid", 400)
+        super().__init__(
+            "Track not found or you don't have access to it", "track_not_found_or_no_access", 400
+        )

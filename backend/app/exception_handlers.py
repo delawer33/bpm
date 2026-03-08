@@ -1,8 +1,10 @@
 import logging
+import traceback
 
 from fastapi import Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from redis.exceptions import ConnectionError as RedisConnectionError
 from sqlalchemy.exc import OperationalError, SQLAlchemyError
 
 from .exceptions import AppBaseException
@@ -33,7 +35,8 @@ def register_exception_handlers(app):
         exc: SQLAlchemyError,
     ):
         request_id = getattr(request.state, "request_id", "unknown")
-        logger.error(f"SQLAlchemyError: {exc}", exc_info=True, extra={"request_id": request_id})
+        traceback.print_exc()
+        logger.error(f"SQLAlchemyError: {exc}", exc_info=False, extra={"request_id": request_id})
         return JSONResponse(
             status_code=500,
             content={
@@ -78,6 +81,23 @@ def register_exception_handlers(app):
                 "code": "validation_error",
                 "message": "Validation failed",
                 "details": errors,
+                "request_id": request_id,
+            },
+        )
+
+    @app.exception_handler(RedisConnectionError)
+    async def database_connection_error_handler(request: Request, exc: RedisConnectionError):
+        request_id = getattr(request.state, "request_id", "unknown")
+        logger.error(
+            "Redis connection failed (likely maxed out connection pool)",
+            extra={"orig": getattr(exc, "orig", None)},
+        )
+
+        return JSONResponse(
+            status_code=503,
+            content={
+                "error": "server_error",
+                "message": "Service temporarily unavailable. Database connection error. Please try again in a few moments.",
                 "request_id": request_id,
             },
         )

@@ -1,6 +1,7 @@
 import uuid
 
 from fastapi import APIRouter, Depends
+from fastapi.responses import JSONResponse
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -31,4 +32,6 @@ async def submit(
     db: AsyncSession = Depends(get_db),
     redis_client: Redis = Depends(get_redis),
 ):
-    track_data = data.model_dump()
+    ts = TrackService(db, redis_client)
+    track = await ts.create_track(data, id, current_user.id)
+    return JSONResponse({"message": "ok"})
