@@ -21,12 +21,21 @@ from .genre import Genre
 from .instrument import Instrument
 from .mood import Mood
 from .tag import Tag
+from .track_file import TrackFile
 
 
 class TrackStatus(str, Enum):
     DRAFT = "draft"
     PROCESSING = "processing"
+    READY = "ready"
     PUBLISHED = "published"
+    FAILED = "failed"
+
+
+class TrackVisibility(str, Enum):
+    PRIVATE = "private"
+    UNLISTED = "unlisted"
+    PUBLIC = "public"
 
 
 class Track(Base):
@@ -73,6 +82,14 @@ class Track(Base):
         index=True,
     )
 
+    visibility: Mapped[TrackVisibility] = mapped_column(
+        PGENUM(TrackVisibility, name="track_visibility", create_type=False),
+        nullable=False,
+        default=TrackVisibility.PUBLIC,
+        server_default="PUBLIC",
+        index=True,
+    )
+
     waveform_data: Mapped[Optional[dict]] = mapped_column(JSONB)
 
     created_at: Mapped[datetime] = mapped_column(
@@ -84,6 +101,12 @@ class Track(Base):
         server_default=func.now(),
         onupdate=func.now(),
         nullable=False,
+    )
+
+    files: Mapped[list["TrackFile"]] = relationship(
+        "TrackFile",
+        back_populates="track",
+        cascade="all, delete-orphan",
     )
 
     tags: Mapped[List["Tag"]] = relationship(
