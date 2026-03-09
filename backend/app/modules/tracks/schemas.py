@@ -4,6 +4,16 @@ from typing import Annotated, List
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
+class STrackFileUploadRequest(BaseModel):
+    filename: Annotated[str, Field(min_length=1, max_length=255)]
+    size: Annotated[int, Field(gt=0)]
+    mime: Annotated[str, Field(min_length=1, max_length=100)]
+
+
+class STrackFileUploadResponse(BaseModel):
+    uploadUrl: str
+
+
 class STrackID(BaseModel):
     track_id: uuid.UUID
 

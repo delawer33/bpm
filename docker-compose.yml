@@ -15,6 +15,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+
   redis:
     image: redis:7.0
     container_name: redis
@@ -24,3 +25,68 @@ services:
       - ./var/redis_data:/data
     restart: unless-stopped
     command: ["redis-server", "--appendonly", "yes"]
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: bpm-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-rabbit}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-rabbit}
+    volumes:
+      - ./var/rabbitmq:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  minio:
+    image: minio/minio:latest
+    container_name: bpm-minio
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      MINIO_NOTIFY_AMQP_ENABLE_PRIMARY: "on"
+      MINIO_NOTIFY_AMQP_URL_PRIMARY: "amqp://${RABBITMQ_DEFAULT_USER:-rabbit}:${RABBITMQ_DEFAULT_PASS:-rabbit}@rabbitmq:5672/%2F"
+      MINIO_NOTIFY_AMQP_EXCHANGE_PRIMARY: "bpm.events"
+      MINIO_NOTIFY_AMQP_EXCHANGE_TYPE_PRIMARY: "topic"
+      MINIO_NOTIFY_AMQP_ROUTING_KEY_PRIMARY: "storage.object.created"
+      MINIO_NOTIFY_AMQP_DURABLE_PRIMARY: "on"
+      MINIO_NOTIFY_AMQP_DELIVERY_MODE_PRIMARY: "2"
+      MINIO_NOTIFY_AMQP_AUTO_DELETED_PRIMARY: "off"
+    volumes:
+      - ./var/minio:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      retries: 5
+    command: server /data --console-address ":9001"
+
+  minio-init:
+    image: minio/mc
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      until mc alias set myminio http://minio:9000 $${MINIO_ROOT_USER} $${MINIO_ROOT_PASSWORD}; do
+        echo 'Waiting for MinIO...'
+        sleep 1
+      done;
+      mc alias set myminio http://minio:9000 $${MINIO_ROOT_USER} $${MINIO_ROOT_PASSWORD} &&
+      mc mb myminio/bpm-tracks --ignore-existing &&
+      mc anonymous set public myminio/bpm-tracks &&
+      mc event add myminio/bpm-tracks arn:minio:sqs::PRIMARY:amqp --event put --prefix 'tmp/' --ignore-existing
+      "
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    restart: "no"

@@ -6,7 +6,12 @@ class SlugValidationError(AppBaseException):
         super().__init__("Slug is invalid", "slug_invalid", 400)
 
 
-class TrackIsNotFoundOrNoAccessError(AppBaseException):
+class TrackFileValidationError(AppBaseException):
+    def __init__(self, message: str):
+        super().__init__(message, "file_validation_error", 400)
+
+
+class TrackNotFoundOrNoAccessError(AppBaseException):
     def __init__(self):
         super().__init__(
             "Track not found or you don't have access to it", "track_not_found_or_no_access", 400

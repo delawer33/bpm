@@ -2,19 +2,21 @@ import logging
 import uuid
 from contextlib import asynccontextmanager
 
+from app.core.rabbitmq import ensure_topology
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1.router import router as api_v1_router
 from app.cache.track_meta import sync_dictionary
 from app.core.db import get_db
+from app.core.config import get_settings
 from app.core.redis import redis_client
 from app.exception_handlers import register_exception_handlers
 from app.logger_settings import RequestIDFilter
 
 logger = logging.getLogger("app_logger")
 
-
+app_settings = get_settings()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     try:
@@ -32,6 +34,9 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error("Failed to sync dictionaries: %s", e)
         raise
+
+    ensure_topology(app_settings.rabbitmq_url)
+
     yield
 
     await redis_client.close()

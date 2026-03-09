@@ -3,7 +3,7 @@ from .instrument import Instrument, TrackInstrument
 from .mood import Mood, TrackMood
 from .tag import Tag, TrackTag
 from .track import Track, TrackStatus
-from .track_file import TrackFile, TrackFileType
+from .track_file import TrackFile, TrackFileStatus, TrackFileType
 
 __all__ = [
     "Genre",
@@ -16,6 +16,7 @@ __all__ = [
     "TrackInstrument",
     "TrackMood",
     "TrackTag",
+    "TrackFileStatus",
     "TrackFileType",
     "TrackStatus",
 ]

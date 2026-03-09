@@ -10,7 +10,7 @@ from sqlalchemy.orm import selectinload
 from app.cache.track_meta import resolve_slugs
 from app.modules.tracks.exceptions import (
     SlugValidationError,
-    TrackIsNotFoundOrNoAccessError,
+    TrackNotFoundOrNoAccessError,
 )
 from app.modules.tracks.models.genre import Genre
 from app.modules.tracks.models.instrument import Instrument
@@ -50,7 +50,7 @@ class TrackService:
             .where(Track.id == track_id)
         )
         if not track or track.user_id != user_id:
-            raise TrackIsNotFoundOrNoAccessError
+            raise TrackNotFoundOrNoAccessError
 
         genre_slugs = payload.pop("genres", [])
         mood_slugs = payload.pop("moods", [])
@@ -60,7 +60,6 @@ class TrackService:
         track.bpm = payload["bpm"]
         track.root_note = payload["root_note"]
         track.scale_type = payload["scale_type"]
-        # TODO remake statuses logic
 
         secondary_ids = await self._validate_slugs(genre_slugs, mood_slugs, instrument_slugs)
         genres = await self.db.scalars(

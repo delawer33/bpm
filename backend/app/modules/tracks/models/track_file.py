@@ -4,6 +4,7 @@ from enum import Enum
 from typing import TYPE_CHECKING, Optional
 
 from sqlalchemy import ForeignKey, Integer, String
+from sqlalchemy.dialects.postgresql import ENUM as PGENUM
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
@@ -18,6 +19,14 @@ class TrackFileType(str, Enum):
     PREVIEW = "preview"
     MAIN = "main"
     STEMS = "stems"
+    IMAGE = "image"
+
+
+class TrackFileStatus(str, Enum):
+    PENDING = "pending"
+    UPLOADED = "uploaded"
+    PROCESSING = "processing"
+    READY = "ready"
 
 
 class TrackFile(Base):
@@ -39,6 +48,14 @@ class TrackFile(Base):
     file_type: Mapped[TrackFileType] = mapped_column(
         String(20),
         nullable=False,
+        index=True,
+    )
+
+    status: Mapped[TrackFileStatus] = mapped_column(
+        PGENUM(TrackFileStatus, name="track_file_status", create_type=False),
+        nullable=False,
+        default=TrackFileStatus.PENDING,
+        server_default="pending",
         index=True,
     )
 
