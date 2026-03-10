@@ -9,14 +9,16 @@ from sqlalchemy.orm import selectinload
 
 from app.cache.track_meta import resolve_slugs
 from app.modules.tracks.exceptions import (
+    InvalidVisibilityStatusError,
     SlugValidationError,
+    TrackNotFoundError,
     TrackNotFoundOrNoAccessError,
 )
 from app.modules.tracks.models.genre import Genre
 from app.modules.tracks.models.instrument import Instrument
 from app.modules.tracks.models.mood import Mood
 from app.modules.tracks.models.tag import Tag
-from app.modules.tracks.models.track import Track
+from app.modules.tracks.models.track import Track, TrackVisibility
 from app.modules.tracks.schemas import STrackUpload
 
 logger = logging.getLogger("app_logger")
@@ -31,6 +33,22 @@ class TrackService:
         track = Track(user_id=user_id)
         self.db.add(track)
         await self.db.flush()
+        return track
+
+    async def get_track_by_id(self, track_id: uuid.UUID, user_id: uuid.UUID) -> Track:
+        stmt = await self.db.execute(
+            select(Track)
+            .where(Track.id == track_id, Track.user_id == user_id)
+            .options(
+                selectinload(Track.tags),
+                selectinload(Track.genres),
+                selectinload(Track.moods),
+                selectinload(Track.instruments),
+            )
+        )
+        track = stmt.scalar_one_or_none()
+        if not track:
+            raise TrackNotFoundError
         return track
 
     async def create_track(self, track_data: STrackUpload, track_id: uuid.UUID, user_id: uuid.UUID):
@@ -52,6 +70,12 @@ class TrackService:
         if not track or track.user_id != user_id:
             raise TrackNotFoundOrNoAccessError
 
+        try:
+            visibility = TrackVisibility(payload["visibility"])
+        except ValueError:
+            raise InvalidVisibilityStatusError
+
+        track.visibility = visibility
         genre_slugs = payload.pop("genres", [])
         mood_slugs = payload.pop("moods", [])
         instrument_slugs = payload.pop("instruments", [])
@@ -105,6 +129,6 @@ class TrackService:
             instrument_ids = await resolve_slugs(self.redis_client, "instruments", instrument_slugs)
         except ValueError as e:
             logger.error("Invalid slug: %s", e)
-            raise SlugValidationError
+            raise SlugValidationError()
 
         return {"genre_ids": genre_ids, "mood_ids": mood_ids, "instrument_ids": instrument_ids}

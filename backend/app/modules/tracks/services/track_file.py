@@ -1,5 +1,3 @@
-"""Track file upload (presigned URL) service."""
-
 import logging
 import uuid
 from typing import Literal

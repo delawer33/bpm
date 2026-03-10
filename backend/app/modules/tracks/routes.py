@@ -13,6 +13,7 @@ from app.modules.tracks.schemas import (
     STrackFileUploadRequest,
     STrackFileUploadResponse,
     STrackID,
+    STrackOwnerResponse,
     STrackUpload,
 )
 from app.modules.tracks.services.track import TrackService
@@ -33,16 +34,16 @@ async def create_draft_track(
     return STrackID(track_id=track.id)
 
 
-@router.post("/{id}/submit")
+@router.post("/{track_id}/submit")
 async def submit(
-    id: uuid.UUID,
+    track_id: uuid.UUID,
     data: STrackUpload,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
     redis_client: Redis = Depends(get_redis),
 ):
     ts = TrackService(db, redis_client)
-    track = await ts.create_track(data, id, current_user.id)
+    track = await ts.create_track(data, track_id, current_user.id)
     return JSONResponse({"message": "ok"})
 
 
@@ -68,3 +69,14 @@ async def create_track_file_upload_url(
     )
     await db.commit()
     return STrackFileUploadResponse(uploadUrl=upload_url)
+
+
+@router.get("/{track_id}", response_model=STrackOwnerResponse)
+async def get_track_for_owner(
+    track_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    ts = TrackService(db)
+    track = await ts.get_track_by_id(track_id, current_user.id)
+    return track

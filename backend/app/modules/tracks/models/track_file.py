@@ -24,7 +24,6 @@ class TrackFileType(str, Enum):
 
 class TrackFileStatus(str, Enum):
     PENDING = "pending"
-    UPLOADED = "uploaded"
     PROCESSING = "processing"
     READY = "ready"
 

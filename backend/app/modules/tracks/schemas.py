@@ -1,7 +1,10 @@
 import uuid
+from datetime import datetime
 from typing import Annotated, List
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+from app.modules.tracks.models.track import TrackVisibility
 
 
 class STrackFileUploadRequest(BaseModel):
@@ -27,7 +30,7 @@ class STrackUpload(BaseModel):
     genres: List[str]
     moods: List[str]
     instruments: List[str]
-
+    visibility: str
     description: str | None = None
 
     model_config = ConfigDict(extra="forbid")
@@ -70,3 +73,44 @@ class STrackUpload(BaseModel):
         if len(v) > 2:
             raise ValueError("Maximum 2 genres")
         return v
+
+    @field_validator("visibility")
+    @classmethod
+    def validate_visibility(cls, v: List[str]) -> List[str]:
+        if v not in TrackVisibility:
+            raise ValueError("Track visibility can be public, private or unlisted")
+        return v
+
+
+class SSlugItem(BaseModel):
+    slug: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class STagItem(BaseModel):
+    name: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class STrackOwnerResponse(BaseModel):
+    id: uuid.UUID
+    title: str | None
+    description: str | None
+    bpm: int | None
+    root_note: str | None
+    scale_type: str | None
+
+    status: str
+    visibility: TrackVisibility
+
+    created_at: datetime
+    updated_at: datetime
+
+    tags: list[STagItem]
+    genres: list[SSlugItem]
+    moods: list[SSlugItem]
+    instruments: list[SSlugItem]
+
+    model_config = ConfigDict(from_attributes=True)

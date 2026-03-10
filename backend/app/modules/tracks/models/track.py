@@ -28,7 +28,6 @@ class TrackStatus(str, Enum):
     DRAFT = "draft"
     PROCESSING = "processing"
     READY = "ready"
-    PUBLISHED = "published"
     FAILED = "failed"
 
 

@@ -1,9 +1,3 @@
-"""
-RabbitMQ topology for BPM events (Option A: single topic exchange + one queue per event type + DLQ).
-
-Call ensure_topology() at worker startup to declare exchange, queues, and bindings.
-"""
-
 from __future__ import annotations
 
 import logging

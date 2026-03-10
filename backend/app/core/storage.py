@@ -1,5 +1,3 @@
-"""S3-compatible storage (MinIO) client and presigned URL helpers."""
-
 from __future__ import annotations
 
 from typing import Any
