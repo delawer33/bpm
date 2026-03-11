@@ -78,5 +78,5 @@ async def get_track_for_owner(
     current_user: User = Depends(get_current_user),
 ):
     ts = TrackService(db)
-    track = await ts.get_track_by_id(track_id, current_user.id)
+    track = await ts.get_track_full(track_id, current_user.id)
     return track

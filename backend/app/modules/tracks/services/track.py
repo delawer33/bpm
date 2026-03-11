@@ -35,7 +35,7 @@ class TrackService:
         await self.db.flush()
         return track
 
-    async def get_track_by_id(self, track_id: uuid.UUID, user_id: uuid.UUID) -> Track:
+    async def get_track_full(self, track_id: uuid.UUID, user_id: uuid.UUID) -> Track:
         stmt = await self.db.execute(
             select(Track)
             .where(Track.id == track_id, Track.user_id == user_id)
@@ -44,6 +44,7 @@ class TrackService:
                 selectinload(Track.genres),
                 selectinload(Track.moods),
                 selectinload(Track.instruments),
+                selectinload(Track.files),
             )
         )
         track = stmt.scalar_one_or_none()

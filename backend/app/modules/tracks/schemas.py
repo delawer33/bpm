@@ -94,6 +94,16 @@ class STagItem(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class STrackFileResponse(BaseModel):
+    id: uuid.UUID
+    file_type: str
+    file_name: str
+    status: str
+    file_size: int
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class STrackOwnerResponse(BaseModel):
     id: uuid.UUID
     title: str | None
@@ -104,6 +114,8 @@ class STrackOwnerResponse(BaseModel):
 
     status: str
     visibility: TrackVisibility
+
+    files: list[STrackFileResponse]
 
     created_at: datetime
     updated_at: datetime
