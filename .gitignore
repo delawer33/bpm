@@ -42,8 +42,11 @@ htmlcov/
 # IDEs / Editors
 .vscode/
 .idea/
+.cursor/
 *.swp
 *.swo
+AGENTS.md
+backend/**/*.mp3
 
 # OS Files
 .DS_Store

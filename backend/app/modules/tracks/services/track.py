@@ -18,8 +18,16 @@ from app.modules.tracks.models.genre import Genre
 from app.modules.tracks.models.instrument import Instrument
 from app.modules.tracks.models.mood import Mood
 from app.modules.tracks.models.tag import Tag
-from app.modules.tracks.models.track import Track, TrackVisibility
+from app.modules.tracks.models.track import Track, TrackStatus, TrackVisibility
+from app.modules.tracks.models.track_file import TrackFile, TrackFileStatus, TrackFileType
 from app.modules.tracks.schemas import STrackUpload
+
+REQUIRED_FILE_TYPES = (
+    TrackFileType.PREVIEW,
+    TrackFileType.MAIN,
+    TrackFileType.STEMS,
+    TrackFileType.IMAGE,
+)
 
 logger = logging.getLogger("app_logger")
 
@@ -133,3 +141,26 @@ class TrackService:
             raise SlugValidationError()
 
         return {"genre_ids": genre_ids, "mood_ids": mood_ids, "instrument_ids": instrument_ids}
+
+    async def update_track_status_for_files(self, track_id: uuid.UUID) -> None:
+        result = await self.db.execute(
+            select(TrackFile).where(
+                TrackFile.track_id == track_id,
+                TrackFile.file_type.in_([t.value for t in REQUIRED_FILE_TYPES]),
+            )
+        )
+        files = list(result.scalars().all())
+        by_type = {f.file_type: f for f in files}
+        if len(by_type) < len(REQUIRED_FILE_TYPES):
+            return
+        any_failed = any(f.status == TrackFileStatus.FAILED for f in files)
+        all_ready = all(f.status == TrackFileStatus.READY for f in files)
+        track = await self.db.get(Track, track_id)
+        if not track:
+            return
+        if any_failed:
+            track.status = TrackStatus.FAILED
+        elif all_ready:
+            track.status = TrackStatus.READY
+        else:
+            track.status = TrackStatus.PROCESSING

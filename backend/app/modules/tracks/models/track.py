@@ -21,6 +21,7 @@ from .genre import Genre
 from .instrument import Instrument
 from .mood import Mood
 from .tag import Tag
+from .thumbnail import Thumbnail
 from .track_file import TrackFile
 
 
@@ -104,6 +105,12 @@ class Track(Base):
 
     files: Mapped[list["TrackFile"]] = relationship(
         "TrackFile",
+        back_populates="track",
+        cascade="all, delete-orphan",
+    )
+
+    thumbnails: Mapped[list["Thumbnail"]] = relationship(
+        "Thumbnail",
         back_populates="track",
         cascade="all, delete-orphan",
     )

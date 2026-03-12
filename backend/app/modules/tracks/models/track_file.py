@@ -26,6 +26,7 @@ class TrackFileStatus(str, Enum):
     PENDING = "pending"
     PROCESSING = "processing"
     READY = "ready"
+    FAILED = "failed"
 
 
 class TrackFile(Base):

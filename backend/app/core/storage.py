@@ -27,6 +27,39 @@ def build_tmp_key(user_id: str, track_id: str, filename: str) -> str:
     return f"tmp/{user_id}/{track_id}/{filename}"
 
 
+def build_tracks_key(user_id: str, track_id: str, filename: str) -> str:
+    return f"tracks/{user_id}/{track_id}/{filename}"
+
+
+def build_thumbnail_key(user_id: str, track_id: str, filename: str) -> str:
+    return f"thumbnails/{user_id}/{track_id}/{filename}"
+
+
+def copy_object(source_key: str, dest_key: str) -> None:
+    settings = get_settings()
+    client = _get_client()
+    client.copy_object(
+        Bucket=settings.minio_bucket,
+        CopySource={"Bucket": settings.minio_bucket, "Key": source_key},
+        Key=dest_key,
+    )
+
+
+def get_object_to_file(storage_key: str, path: str) -> None:
+    settings = get_settings()
+    client = _get_client()
+    client.download_file(settings.minio_bucket, storage_key, path)
+
+
+def put_object_from_file(storage_key: str, path: str, content_type: str | None = None) -> None:
+    settings = get_settings()
+    client = _get_client()
+    extra = {}
+    if content_type:
+        extra["ContentType"] = content_type
+    client.upload_file(path, settings.minio_bucket, storage_key, ExtraArgs=extra)
+
+
 def get_presigned_put_url(
     storage_key: str,
     expires_in: int | None = None,
