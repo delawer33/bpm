@@ -8,11 +8,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_db
 from app.core.redis import get_redis
-from app.dependencies import get_current_user
+from app.dependencies import get_current_user, get_s3_client
 from app.modules.tracks.schemas import (
     STrackFileUploadRequest,
     STrackFileUploadResponse,
     STrackID,
+    STrackFileDetailResponse,
     STrackOwnerResponse,
     STrackUpload,
 )
@@ -57,6 +58,7 @@ async def create_track_file_upload_url(
     data: STrackFileUploadRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
+    s3_client=Depends(get_s3_client),
 ):
     tfs = TrackFileService(db)
     upload_url = await tfs.get_presigned_upload(
@@ -66,6 +68,7 @@ async def create_track_file_upload_url(
         filename=data.filename,
         size=data.size,
         mime=data.mime,
+        client=s3_client,
     )
     await db.commit()
     return STrackFileUploadResponse(uploadUrl=upload_url)
@@ -80,3 +83,31 @@ async def get_track_for_owner(
     ts = TrackService(db)
     track = await ts.get_track_full(track_id, current_user.id)
     return track
+
+
+@router.get("/files/{track_file_id}", response_model=STrackFileDetailResponse)
+async def get_track_file(
+    track_file_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    s3_client=Depends(get_s3_client),
+):
+    tfs = TrackFileService(db)
+    track_file, url = await tfs.get_track_file_for_user(
+        track_file_id=track_file_id,
+        current_user_id=current_user.id,
+        s3_client=s3_client,
+    )
+    return STrackFileDetailResponse(
+        id=track_file.id,
+        track_id=track_file.track_id,
+        file_type=str(track_file.file_type),
+        status=str(track_file.status),
+        storage_key=track_file.storage_key,
+        file_name=track_file.file_name,
+        file_size=track_file.file_size,
+        duration_seconds=track_file.duration_seconds,
+        mime_type=track_file.mime_type,
+        created_at=track_file.created_at,
+        url=url,
+    )

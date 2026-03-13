@@ -67,21 +67,23 @@ def put_object_from_file(
     settings = get_settings()
     if client is None:
         client = _get_client()
-    extra = {}
+    extra: dict[str, str] = {}
     if content_type:
         extra["ContentType"] = content_type
     client.upload_file(path, settings.minio_bucket, storage_key, ExtraArgs=extra)
 
 
-# TODO pass client instead initializing?
 def get_presigned_put_url(
     storage_key: str,
     expires_in: int | None = None,
+    *,
+    client: Any | None = None,
 ) -> str:
     settings = get_settings()
     if expires_in is None:
         expires_in = settings.minio_presign_expire_seconds
-    client = _get_client()
+    if client is None:
+        client = _get_client()
     try:
         url = client.generate_presigned_url(
             "put_object",
@@ -92,6 +94,30 @@ def get_presigned_put_url(
             ExpiresIn=expires_in,
         )
     except ClientError as e:
-        # TODO log
+        raise RuntimeError(f"Failed to generate presigned URL: {e}") from e
+    return url
+
+
+def get_presigned_get_url(
+    storage_key: str,
+    expires_in: int | None = None,
+    *,
+    client: Any | None = None,
+) -> str:
+    settings = get_settings()
+    if expires_in is None:
+        expires_in = settings.minio_presign_expire_seconds
+    if client is None:
+        client = _get_client()
+    try:
+        url = client.generate_presigned_url(
+            "get_object",
+            Params={
+                "Bucket": settings.minio_bucket,
+                "Key": storage_key,
+            },
+            ExpiresIn=expires_in,
+        )
+    except ClientError as e:
         raise RuntimeError(f"Failed to generate presigned URL: {e}") from e
     return url

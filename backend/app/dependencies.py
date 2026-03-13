@@ -1,3 +1,5 @@
+from typing import Any
+
 from fastapi import Depends
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -5,6 +7,7 @@ from sqlalchemy.future import select
 
 from app.core.db import get_db
 from app.core.security import decode_token
+from app.core.storage import create_s3_client
 from app.modules.users.exceptions import InvalidTokenError
 from app.modules.users.models import User
 
@@ -37,3 +40,7 @@ async def get_current_user(
         raise InvalidTokenError
 
     return user
+
+
+def get_s3_client() -> Any:
+    return create_s3_client()

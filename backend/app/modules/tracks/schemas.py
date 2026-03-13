@@ -104,6 +104,22 @@ class STrackFileResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class STrackFileDetailResponse(BaseModel):
+    id: uuid.UUID
+    track_id: uuid.UUID
+    file_type: str
+    status: str
+    storage_key: str
+    file_name: str | None
+    file_size: int | None
+    duration_seconds: int | None
+    mime_type: str | None
+    created_at: datetime
+    url: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class STrackOwnerResponse(BaseModel):
     id: uuid.UUID
     title: str | None

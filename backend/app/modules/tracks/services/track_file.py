@@ -1,14 +1,19 @@
 import logging
 import uuid
-from typing import Literal
+from typing import Any, Literal
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.core.config import get_settings
-from app.core.storage import build_tmp_key, get_presigned_put_url
+from app.core.storage import (
+    build_tmp_key,
+    get_presigned_get_url,
+    get_presigned_put_url,
+)
 from app.modules.tracks.exceptions import TrackFileValidationError, TrackNotFoundOrNoAccessError
-from app.modules.tracks.models.track import Track
+from app.modules.tracks.models.track import Track, TrackVisibility
 from app.modules.tracks.models.track_file import TrackFile, TrackFileStatus, TrackFileType
 
 logger = logging.getLogger("app_logger")
@@ -78,6 +83,8 @@ class TrackFileService:
         filename: str,
         size: int,
         mime: str,
+        *,
+        client: Any | None = None,
     ) -> str:
         track = await self.db.scalar(select(Track).where(Track.id == track_id))
         if not track:
@@ -117,5 +124,32 @@ class TrackFileService:
             self.db.add(track_file)
 
         await self.db.flush()
-        upload_url = get_presigned_put_url(storage_key)
+        upload_url = get_presigned_put_url(storage_key, client=client)
         return upload_url
+
+    async def get_track_file_for_user(
+        self,
+        track_file_id: uuid.UUID,
+        current_user_id: uuid.UUID,
+        s3_client: Any,
+    ) -> tuple[TrackFile, str]:
+        stmt = (
+            select(TrackFile)
+            .options(selectinload(TrackFile.track))
+            .where(TrackFile.id == track_file_id)
+        )
+        result = await self.db.execute(stmt)
+        track_file = result.scalar_one_or_none()
+        if not track_file or not track_file.track:
+            raise TrackNotFoundOrNoAccessError
+
+        track = track_file.track
+
+        if str(track.user_id) != str(current_user_id):
+            if track.visibility is not TrackVisibility.PUBLIC:
+                raise TrackNotFoundOrNoAccessError
+            if track_file.file_type not in {TrackFileType.PREVIEW.value, TrackFileType.IMAGE.value}:
+                raise TrackNotFoundOrNoAccessError
+
+        url = get_presigned_get_url(track_file.storage_key, client=s3_client)
+        return track_file, url
