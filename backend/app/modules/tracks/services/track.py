@@ -1,8 +1,11 @@
 import logging
 import uuid
+import base64
+import json
 
+from datetime import datetime
 from redis.asyncio import Redis
-from sqlalchemy import select
+from sqlalchemy import select, tuple_
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -20,7 +23,7 @@ from app.modules.tracks.models.mood import Mood
 from app.modules.tracks.models.tag import Tag
 from app.modules.tracks.models.track import Track, TrackStatus, TrackVisibility
 from app.modules.tracks.models.track_file import TrackFile, TrackFileStatus, TrackFileType
-from app.modules.tracks.schemas import STrackUpload
+from app.modules.tracks.schemas import STrackListFilters, STrackUpload
 
 REQUIRED_FILE_TYPES = (
     TrackFileType.PREVIEW,
@@ -32,6 +35,25 @@ REQUIRED_FILE_TYPES = (
 logger = logging.getLogger("app_logger")
 
 
+
+def encode_track_cursor(created_at: datetime, track_id: uuid.UUID) -> str:
+    payload = {
+        "created_at": created_at.isoformat(),
+        "id": str(track_id),
+    }
+    return base64.urlsafe_b64encode(json.dumps(payload).encode()).decode()
+
+
+def decode_track_cursor(cursor: str) -> tuple[datetime, uuid.UUID] | None:
+    try:
+        raw = base64.urlsafe_b64decode(cursor.encode())
+        payload = json.loads(raw.decode())
+        created_at = datetime.fromisoformat(payload["created_at"])
+        track_id = uuid.UUID(payload["id"])
+        return created_at, track_id
+    except (ValueError, KeyError, TypeError):
+        return None
+
 class TrackService:
     def __init__(self, db: AsyncSession, redis_client: Redis | None = None) -> None:
         self.db = db
@@ -42,6 +64,48 @@ class TrackService:
         self.db.add(track)
         await self.db.flush()
         return track
+
+    async def get_tracks_for_owner(
+        self, user_id: uuid.UUID, filters: STrackListFilters
+    ) -> tuple[list[Track], str | None]:
+        stmt = select(Track).where(Track.user_id == user_id)
+
+        if filters.status:
+            stmt = stmt.where(Track.status.in_([s.value for s in filters.status]))
+        if filters.bpm_min is not None:
+            stmt = stmt.where(Track.bpm >= filters.bpm_min)
+        if filters.bpm_max is not None:
+            stmt = stmt.where(Track.bpm <= filters.bpm_max)
+        if filters.root_note:
+            stmt = stmt.where(Track.root_note.in_(filters.root_note))
+        if filters.scale_type:
+            stmt = stmt.where(Track.scale_type.in_(filters.scale_type))
+        if filters.visibility:
+            stmt = stmt.where(
+                Track.visibility.in_([v.value for v in filters.visibility])
+            )
+
+        if filters.cursor:
+            decoded = decode_track_cursor(filters.cursor)
+            if decoded:
+                c_created_at, c_id = decoded
+                stmt = stmt.where(
+                    tuple_(Track.created_at, Track.id) < (c_created_at, c_id)
+                )
+
+        stmt = stmt.order_by(Track.created_at.desc(), Track.id.desc())
+        stmt = stmt.limit(filters.limit + 1)
+
+        result = await self.db.execute(stmt)
+        rows = list(result.scalars().all())
+
+        next_cursor = None
+        if len(rows) > filters.limit:
+            last = rows[filters.limit - 1]
+            next_cursor = encode_track_cursor(last.created_at, last.id)
+            rows = rows[: filters.limit]
+
+        return rows, next_cursor
 
     async def get_track_full(self, track_id: uuid.UUID, user_id: uuid.UUID) -> Track:
         stmt = await self.db.execute(

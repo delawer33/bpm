@@ -1,7 +1,7 @@
 import uuid
 from typing import Literal
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from fastapi.responses import JSONResponse
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,11 +9,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.db import get_db
 from app.core.redis import get_redis
 from app.dependencies import get_current_user, get_s3_client
+from app.modules.tracks.models.track import TrackStatus, TrackVisibility
 from app.modules.tracks.schemas import (
     STrackFileUploadRequest,
     STrackFileUploadResponse,
     STrackID,
     STrackFileDetailResponse,
+    STrackListFilters,
+    STrackListItem,
+    STrackListResponse,
     STrackOwnerResponse,
     STrackUpload,
 )
@@ -24,6 +28,28 @@ from app.modules.users.models import User
 router = APIRouter(prefix="/tracks")
 
 FileTypePath = Literal["preview", "main", "stems", "image"]
+
+
+def get_track_list_filters(
+    status: list[TrackStatus] | None = Query(None),
+    bpm_min: int | None = Query(None, ge=1, le=300),
+    bpm_max: int | None = Query(None, ge=1, le=300),
+    root_note: list[str] | None = Query(None),
+    scale_type: list[str] | None = Query(None),
+    visibility: list[TrackVisibility] | None = Query(None),
+    limit: int = Query(20, ge=1, le=100),
+    cursor: str | None = Query(None),
+) -> STrackListFilters:
+    return STrackListFilters(
+        status=status,
+        bpm_min=bpm_min,
+        bpm_max=bpm_max,
+        root_note=root_note,
+        scale_type=scale_type,
+        visibility=visibility,
+        limit=limit,
+        cursor=cursor,
+    )
 
 
 @router.post("/draft", response_model=STrackID)
@@ -72,6 +98,32 @@ async def create_track_file_upload_url(
     )
     await db.commit()
     return STrackFileUploadResponse(uploadUrl=upload_url)
+
+
+@router.get("", response_model=STrackListResponse)
+async def list_tracks_for_owner(
+    filters: STrackListFilters = Depends(get_track_list_filters),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    ts = TrackService(db)
+    tracks, next_cursor = await ts.get_tracks_for_owner(current_user.id, filters)
+    items = [
+        STrackListItem(
+            id=t.id,
+            title=t.title,
+            description=t.description,
+            bpm=t.bpm,
+            root_note=t.root_note,
+            scale_type=t.scale_type,
+            status=t.status.value,
+            visibility=t.visibility,
+            created_at=t.created_at,
+            updated_at=t.updated_at,
+        )
+        for t in tracks
+    ]
+    return STrackListResponse(items=items, next_cursor=next_cursor)
 
 
 @router.get("/{track_id}", response_model=STrackOwnerResponse)

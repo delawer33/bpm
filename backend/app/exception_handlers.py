@@ -3,6 +3,7 @@ import traceback
 
 from fastapi import Request
 from fastapi.exceptions import RequestValidationError
+from pydantic import ValidationError
 from fastapi.responses import JSONResponse
 from redis.exceptions import ConnectionError as RedisConnectionError
 from sqlalchemy.exc import OperationalError, SQLAlchemyError
@@ -65,6 +66,7 @@ def register_exception_handlers(app):
         )
 
     @app.exception_handler(RequestValidationError)
+    @app.exception_handler(ValidationError)
     async def validation_exception_handler(request: Request, exc: RequestValidationError):
         request_id = getattr(request.state, "request_id", "unknown")
         errors = [
@@ -78,7 +80,7 @@ def register_exception_handlers(app):
         return JSONResponse(
             status_code=422,
             content={
-                "code": "validation_error",
+                "error": "validation_error",
                 "message": "Validation failed",
                 "details": errors,
                 "request_id": request_id,

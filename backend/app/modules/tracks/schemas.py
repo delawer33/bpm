@@ -4,7 +4,10 @@ from typing import Annotated, List
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from app.modules.tracks.models.track import TrackVisibility
+from app.modules.tracks.models.track import TrackStatus, TrackVisibility
+
+ROOT_NOTES = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"}
+SCALE_TYPES = {"major", "minor"}
 
 
 class STrackFileUploadRequest(BaseModel):
@@ -38,17 +41,15 @@ class STrackUpload(BaseModel):
     @field_validator("root_note")
     @classmethod
     def validate_root_note(cls, v: str) -> str:
-        allowed = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"}
-        if v not in allowed:
-            raise ValueError(f"root_note must be one of {allowed}")
+        if v not in ROOT_NOTES:
+            raise ValueError(f"root_note must be one of {ROOT_NOTES}")
         return v
 
     @field_validator("scale_type")
     @classmethod
     def validate_scale_type(cls, v: str) -> str:
-        allowed = {"major", "minor"}
-        if v not in allowed:
-            raise ValueError(f"scale_type must be one of {allowed}")
+        if v not in SCALE_TYPES:
+            raise ValueError(f"scale_type must be one of {SCALE_TYPES}")
         return v
 
     @field_validator("moods")
@@ -118,6 +119,59 @@ class STrackFileDetailResponse(BaseModel):
     url: str
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class STrackListFilters(BaseModel):
+    status: List[TrackStatus] | None = None
+    bpm_min: Annotated[int | None, Field(None, ge=1, le=300)] = None
+    bpm_max: Annotated[int | None, Field(None, ge=1, le=300)] = None
+    root_note: List[str] | None = None
+    scale_type: List[str] | None = None
+    visibility: List[TrackVisibility] | None = None
+    limit: Annotated[int, Field(default=20, ge=1, le=100)] = 20
+    cursor: str | None = None
+
+    model_config = ConfigDict(extra="forbid")
+
+    @field_validator("root_note")
+    @classmethod
+    def validate_root_notes(cls, v: List[str] | None) -> List[str] | None:
+        if not v:
+            return v
+        invalid = set(v) - ROOT_NOTES
+        if invalid:
+            raise ValueError(f"root_note must be one of {ROOT_NOTES}")
+        return v
+
+    @field_validator("scale_type")
+    @classmethod
+    def validate_scale_types(cls, v: List[str] | None) -> List[str] | None:
+        if not v:
+            return v
+        invalid = set(v) - SCALE_TYPES
+        if invalid:
+            raise ValueError(f"scale_type must be one of {SCALE_TYPES}")
+        return v
+
+
+class STrackListItem(BaseModel):
+    id: uuid.UUID
+    title: str | None
+    description: str | None
+    bpm: int | None
+    root_note: str | None
+    scale_type: str | None
+    status: str
+    visibility: TrackVisibility
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class STrackListResponse(BaseModel):
+    items: list[STrackListItem]
+    next_cursor: str | None
 
 
 class STrackOwnerResponse(BaseModel):

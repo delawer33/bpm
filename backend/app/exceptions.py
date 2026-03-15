@@ -1,3 +1,13 @@
+class ErrorCode:
+    AUTH_FAILED = "auth_failed"
+    EMAIL_TAKEN = "email_taken"
+    NOT_FOUND = "not_found"
+    FORBIDDEN = "forbidden"
+    BAD_REQUEST = "bad_request"
+    VALIDATION_ERROR = "validation_error"
+    SERVER_ERROR = "server_error"
+
+
 class AppBaseException(Exception):
     def __init__(
         self,
